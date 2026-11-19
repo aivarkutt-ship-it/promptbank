@@ -2,34 +2,137 @@
 <html lang="et">
 <head>
   <meta charset="UTF-8">
-  <title>PromptBank – AI Viibad ja Käsud</title>
+  <title>PromptBank – AI Viibapank</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Supabase JS teek CDN-ist -->
-  <script src="https://onnsyexedghtjakochas.supabase.co"></script>
   <style>
-    :root { --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; --primary: #3b82f6; --text: #1e293b; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 24px; max-width: 1100px; margin: 0 auto; }
-    h1 { margin-bottom: 24px; display: flex; align-items: center; gap: 8px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-    input, select, textarea, button { width: 100%; padding: 10px; margin-top: 6px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 14px; }
-    button { background: var(--primary); color: white; border: none; font-weight: 600; cursor: pointer; }
-    button:hover { opacity: 0.9; }
-    .filters { display: flex; gap: 10px; margin-bottom: 16px; }
-    .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; }
-    .badge-claude { background: #fef3c7; color: #b45309; }
-    .badge-gemini { background: #e0e7ff; color: #4338ca; }
-    .badge-notebooklm { background: #dcfce7; color: #15803d; }
-    .prompt-text { background: #f1f5f9; padding: 10px; border-radius: 6px; font-family: monospace; white-space: pre-wrap; font-size: 13px; max-height: 150px; overflow-y: auto; }
-    .prompt-img { max-width: 100%; border-radius: 6px; margin-top: 8px; border: 1px solid var(--border); }
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --claude-bg: #fef3c7; --claude-text: #b45309;
+      --gemini-bg: #e0e7ff; --gemini-text: #4338ca;
+      --notebooklm-bg: #dcfce7; --notebooklm-text: #15803d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 24px; max-width: 1200px; margin: 0 auto; line-height: 1.5; }
+
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    h1 { font-size: 26px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    h1 span { font-size: 14px; font-weight: 500; color: var(--text-muted); }
+
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .card h3 { margin-bottom: 14px; display: flex; align-items: center; gap: 8px; font-size: 17px; }
+
+    /* Tabs ja sektsioonid */
+    .toggle-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+    .toggle-btn { background: white; border: 1px solid var(--border); padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text); }
+    .toggle-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    /* Vormid ja väljad */
+    label { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; display: block; }
+    input, select, textarea { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: #fff; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); border-color: transparent; }
+
+    button.btn-primary { background: var(--primary); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s; }
+    button.btn-primary:hover { background: var(--primary-hover); }
+
+    /* Otsing ja filtrid */
+    .controls-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .filter-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .pill { border: 1px solid var(--border); background: white; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .pill.active { background: var(--text); color: white; border-color: var(--text); }
+
+    /* Viipade võrgustik */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
+    .prompt-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .badge-claude { background: var(--claude-bg); color: var(--claude-text); }
+    .badge-gemini { background: var(--gemini-bg); color: var(--gemini-text); }
+    .badge-notebooklm { background: var(--notebooklm-bg); color: var(--notebooklm-text); }
+
+    .prompt-text { background: #f8fafc; border: 1px solid #edf2f7; padding: 12px; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; white-space: pre-wrap; word-break: break-word; max-height: 180px; overflow-y: auto; margin: 10px 0; color: #334155; }
+    .prompt-img { max-width: 100%; border-radius: 8px; margin: 8px 0; border: 1px solid var(--border); max-height: 180px; object-fit: cover; }
+
+    .btn-copy { background: #f1f5f9; color: #334155; border: 1px solid var(--border); padding: 8px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; width: 100%; }
+    .btn-copy:hover { background: #e2e8f0; }
+    .btn-copy.copied { background: #dcfce7; color: #166534; border-color: #86efac; }
+
+    /* Builder ja Juhend */
+    .guide-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px; margin-bottom: 20px; font-size: 14px; }
+    .guide-box h4 { color: #1e40af; margin-bottom: 6px; }
+    .auto-tag { font-size: 11px; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; margin-left: 6px; display: none; }
   </style>
 </head>
 <body>
 
-  <h1>⚡ PromptBank <span>(Claude • Gemini • NotebookLM)</span></h1>
+  <header>
+    <h1>⚡ PromptBank <span>Claude • Gemini • NotebookLM</span></h1>
+    <div class="toggle-bar">
+      <button class="toggle-btn active" onclick="switchSection('prompts')">Viibakogu</button>
+      <button class="toggle-btn" onclick="switchSection('builder')">Viipade koostaja</button>
+      <button class="toggle-btn" onclick="switchSection('guide')">Kasutusjuhend</button>
+    </div>
+  </header>
 
-  <!-- Viiba lisamise vorm -->
-  <div class="card">
+  <!-- KASUTUSJUHENDI SEKTSIOON -->
+  <div id="section-guide" class="card" style="display: none;">
+    <h3>📖 Kasutusjuhend ja nipid AI mudelitele</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+      <div class="guide-box">
+        <h4>🟠 Claude (Anthropic)</h4>
+        <p>Suurepärane pikkade tekstide, akadeemiliste tööde ja koodi analüüsiks. Kasuta selgeid struktuure nagu <code>/research</code> või <code>/critique</code>. Claude järgib väga täpselt piiranguid ja süsteemseid rolle.</p>
+      </div>
+      <div class="guide-box" style="background: #f5f3ff; border-color: #ddd6fe;">
+        <h4 style="color: #5b21b6;">🔵 Google Gemini</h4>
+        <p>Võimas multimodaalsuses (pildid, video, audio) ja Google'i ökosüsteemi sidumises. Toimib kõige paremini, kui annad talle konkreetse rolli, näited (few-shot) ja selged väljundformaadid (tabelid, loendid).</p>
+      </div>
+      <div class="guide-box" style="background: #f0fdf4; border-color: #bbf7d0;">
+        <h4 style="color: #166534;">🟢 Google NotebookLM</h4>
+        <p>Mõeldud 100% allikapõhiseks analüüsiks. Suuna viipades märkmete sünteesi, podcasti helikokkuvõtete (Audio Overview) fookust või tee allikatest automaatseid õpikaarte ja teste.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIIPADE KOOSTAJA (PROMPT BUILDER) -->
+  <div id="section-builder" class="card" style="display: none;">
+    <h3>🛠️ Nutikas viipade koostaja (Prompt Builder)</h3>
+    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Täida sammud – süsteem paneb kokku optimeeritud viiba, mille saad ühe klikiga lisada viipapanka või kopeerida.</p>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label>1. Roll (Kelleks AI kehastub?):</label>
+        <input type="text" id="b-role" placeholder="nt. Kogenud vanemteadur, copywriter, programmeerija...">
+      </div>
+      <div>
+        <label>2. Eesmärk / Põhiülesanne:</label>
+        <input type="text" id="b-task" placeholder="nt. Analüüsi seda teksti, loo konverentsikava...">
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label>3. Kontekst ja sihtrühm:</label>
+        <input type="text" id="b-context" placeholder="nt. Sihtrühmaks on doktorandid, tegemist on idufirmaga...">
+      </div>
+      <div>
+        <label>4. Piirangud / Reeglid:</label>
+        <input type="text" id="b-rules" placeholder="nt. Väldi kantseliiti, maksimaalselt 300 sõna, kasuta eesti keelt...">
+      </div>
+    </div>
+
+    <label>5. Soovitud väljundvorming:</label>
+    <input type="text" id="b-format" placeholder="nt. Nummerdatud loend, Markdown tabel, JSON, lühikokkuvõte...">
+
+    <button class="btn-primary" style="background: #059669;" onclick="generateBuiltPrompt()">Koosta viip ja vii lisamisvormi ➔</button>
+  </div>
+
+  <!-- VIIBA LISAMISE VORM -->
+  <div id="form-container" class="card">
     <h3>➕ Lisa uus viip või käsk</h3>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
       <div>
@@ -41,7 +144,7 @@
         </select>
       </div>
       <div>
-        <label>Kategooria:</label>
+        <label>Kategooria: <span id="auto-badge" class="auto-tag">Automaatselt tuvastatud</span></label>
         <input type="text" id="category" placeholder="nt. Teadustöö, Kood, Sisu..." value="Üldine">
       </div>
     </div>
@@ -50,33 +153,123 @@
     <input type="text" id="title" placeholder="Lühike ja tabav pealkiri" required>
 
     <label>Viiba sisu (Prompt):</label>
-    <textarea id="prompt_text" rows="3" placeholder="Kleebi siia viiba tekst..." required></textarea>
+    <textarea id="prompt_text" rows="3" placeholder="Kleebi või koosta siia viiba tekst..." required></textarea>
 
     <label>Pilt (valikuline):</label>
     <input type="file" id="image_file" accept="image/*">
 
-    <button onclick="savePrompt()">Salvesta PromptBanki</button>
+    <button class="btn-primary" onclick="savePrompt()">Salvesta PromptBanki</button>
   </div>
 
-  <!-- Filtreerimine -->
-  <div class="filters">
-    <button style="width: auto; background: #64748b;" onclick="fetchPrompts('all')">Kõik</button>
-    <button style="width: auto; background: #b45309;" onclick="fetchPrompts('claude')">Claude</button>
-    <button style="width: auto; background: #4338ca;" onclick="fetchPrompts('gemini')">Gemini</button>
-    <button style="width: auto; background: #15803d;" onclick="fetchPrompts('notebooklm')">NotebookLM</button>
+  <!-- FILTREERIMINE JA OTSING -->
+  <div class="controls-grid">
+    <input type="text" id="search-input" placeholder="🔍 Otsi pealkirjast, sisust või kategooriast..." oninput="handleSearch()">
+    <select id="category-filter" onchange="filterByCategory(this.value)">
+      <option value="all">Kõik kategooriad</option>
+    </select>
   </div>
 
-  <!-- Viipade nimekiri -->
+  <div class="filter-pills">
+    <button class="pill active" onclick="filterByModel('all', this)">Kõik mudelid</button>
+    <button class="pill" onclick="filterByModel('claude', this)">Claude</button>
+    <button class="pill" onclick="filterByModel('gemini', this)">Gemini</button>
+    <button class="pill" onclick="filterByModel('notebooklm', this)">NotebookLM</button>
+  </div>
+
+  <!-- VIIPADE NIMEKIRI -->
   <div id="prompts-grid" class="grid">Laen viipasid...</div>
 
-  <script>
-    // 1. SUPABASE ÜHENDUS
-    const SUPABASE_URL = "https://onnsyexedghtjakochas.supabase.co"; // ASENDA OMA PROJEKTI URL-IGA
-    const SUPABASE_ANON_KEY = "sb_publishable_VGBmIpOwhtP5_QBuHw6RgA_fZRDi5Ij";                  // ASENDA OMA ANON VÕTMEGA
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  <!-- SUPABASE SKRIPT JA LOOGIKA -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-    // 2. VIIBA SALVESTAMINE
-    async function savePrompt() {
+    // 1. SUPABASE ÜHENDUS (DOCTYPE html.docx parameetrid)
+    const SUPABASE_URL = "https://onnsyexedghtjakochas.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_VGBmIpOwhtP5_QBuHw6RgA_fZRDi5Ij";
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let allPrompts = [];
+    let activeModel = 'all';
+    let activeCategory = 'all';
+    let searchQuery = '';
+
+    // 2. TÖÖRIISTAD JA VAADETE VAHETUS
+    window.switchSection = function(section) {
+      document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('section-guide').style.display = 'none';
+      document.getElementById('section-builder').style.display = 'none';
+
+      if (section === 'guide') {
+        document.getElementById('section-guide').style.display = 'block';
+        event.target.classList.add('active');
+      } else if (section === 'builder') {
+        document.getElementById('section-builder').style.display = 'block';
+        event.target.classList.add('active');
+      } else {
+        event.target.classList.add('active');
+      }
+    };
+
+    // 3. AUTOMAATNE KATEGORISEERIJA MÄRKSÕNADE PÕHJAL
+    const categoryKeywords = {
+      'PhD / Teadustöö': ['research', 'phd', 'artikkel', 'metoodika', 'literature', 'hüpotees', 'dissertatsioon', 'latex', 'uuring', 'peer-review'],
+      'Kood (Coding)': ['kood', 'debug', 'python', 'javascript', 'html', 'css', 'refactor', 'funktsioon', 'sql', 'bug', 'api'],
+      'Kirjutamine (Writing)': ['blogi', 'kirjuta', 'artikkel', 'mustand', 'copywriting', 'pealkiri', 'sissejuhatus', 'toimeta'],
+      'Äri (Business)': ['äriplaan', 'turundus', 'müük', 'konkurent', 'turg', 'investor', 'strateegia', 'käive', 'eelarve'],
+      'Õppimine (Learning)': ['õpi', 'seleta', 'mõiste', 'flashcard', 'algaja', 'lihtsustus', 'viktoriin', 'kokkuvõte'],
+      'Analüüs (Analysis)': ['analüüs', 'andmed', 'statistika', 'tabel', 'korrelatsioon', 'tulemused', 'graafik'],
+      'Automatiseerimine': ['töövoog', 'automaat', 'batch', 'skript', 'rutiin', 'protsess'],
+      'Loovus (Creative)': ['loov', 'idee', 'ajurünnak', 'brainstorm', 'pildiviip', 'kunst', 'metafoor']
+    };
+
+    const promptInput = document.getElementById('prompt_text');
+    const titleInput = document.getElementById('title');
+    const catInput = document.getElementById('category');
+    const autoBadge = document.getElementById('auto-badge');
+
+    function autoCategorize() {
+      const text = (titleInput.value + ' ' + promptInput.value).toLowerCase();
+      for (const [category, words] of Object.entries(categoryKeywords)) {
+        if (words.some(w => text.includes(w))) {
+          catInput.value = category;
+          autoBadge.style.display = 'inline-block';
+          return;
+        }
+      }
+    }
+    promptInput.addEventListener('input', autoCategorize);
+    titleInput.addEventListener('input', autoCategorize);
+
+    // 4. VIIPADE KOOSTAJA LOOGIKA
+    window.generateBuiltPrompt = function() {
+      const role = document.getElementById('b-role').value.trim();
+      const task = document.getElementById('b-task').value.trim();
+      const context = document.getElementById('b-context').value.trim();
+      const rules = document.getElementById('b-rules').value.trim();
+      const format = document.getElementById('b-format').value.trim();
+
+      if (!task) {
+        alert('Palun märgi vähemalt põhiülesanne!');
+        return;
+      }
+
+      let constructed = '';
+      if (role) constructed += `Oled ${role}.\n\n`;
+      constructed += `ÜLESANNE:\n${task}\n\n`;
+      if (context) constructed += `KONTEKST:\n${context}\n\n`;
+      if (rules) constructed += `REEGLID JA PIIRANGUD:\n${rules}\n\n`;
+      if (format) constructed += `VÄLJUNDIVORMING:\n${format}`;
+
+      promptInput.value = constructed;
+      if (task) titleInput.value = task.slice(0, 45);
+      autoCategorize();
+
+      // Keri alla lisamisvormini
+      document.getElementById('form-container').scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // 5. VIIBA SALVESTAMINE SUPABASE'I
+    window.savePrompt = async function() {
       const model = document.getElementById('model').value;
       const category = document.getElementById('category').value;
       const title = document.getElementById('title').value;
@@ -89,9 +282,8 @@
         return;
       }
 
-      // Pildi üleslaadimine (kui on valitud)
       if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
+        const file = fileInput.files;
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
 
@@ -99,10 +291,7 @@
           .from('prompt-images')
           .upload(fileName, file);
 
-        if (uploadError) {
-          console.error("Pildi viga:", uploadError);
-        } else {
-          // Hankige pildi avalik link
+        if (!uploadError) {
           const { data: publicUrlData } = supabase.storage
             .from('prompt-images')
             .getPublicUrl(fileName);
@@ -110,7 +299,6 @@
         }
       }
 
-      // Kirje lisamine andmebaasi
       const { error } = await supabase.from('prompts').insert([{
         model,
         category,
@@ -123,49 +311,114 @@
       if (error) {
         alert("Viga salvestamisel: " + error.message);
       } else {
-        // Tühjenda väljad ja värskenda vaadet
-        document.getElementById('title').value = '';
-        document.getElementById('prompt_text').value = '';
+        titleInput.value = '';
+        promptInput.value = '';
         fileInput.value = '';
-        fetchPrompts();
+        autoBadge.style.display = 'none';
+        loadPrompts();
       }
+    };
+
+    // 6. VIIPADE LAADIMINE JA FILTREERIMINE
+    async function loadPrompts() {
+      const grid = document.getElementById('prompts-grid');
+      grid.innerHTML = '<p>Laen viipasid...</p>';
+
+      const { data, error } = await supabase
+        .from('prompts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        grid.innerHTML = `<p style="color:red">Viga laadimisel: ${error.message}</p>`;
+        return;
+      }
+
+      allPrompts = data || [];
+      populateCategoryDropdown();
+      renderPrompts();
     }
 
-    // 3. VIIPADE PÄRIMINE JA KUVAMINE
-    async function fetchPrompts(filterModel = 'all') {
+    function populateCategoryDropdown() {
+      const dropdown = document.getElementById('category-filter');
+      const cats = Array.from(new Set(allPrompts.map(p => p.category || 'Üldine'))).sort();
+      dropdown.innerHTML = '<option value="all">Kõik kategooriad</option>' + 
+        cats.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    function renderPrompts() {
       const grid = document.getElementById('prompts-grid');
-      grid.innerHTML = 'Laen andmeid...';
+      let filtered = allPrompts;
 
-      let query = supabase.from('prompts').select('*').order('created_at', { ascending: false });
-      if (filterModel !== 'all') {
-        query = query.eq('model', filterModel);
+      if (activeModel !== 'all') {
+        filtered = filtered.filter(p => p.model === activeModel);
+      }
+      if (activeCategory !== 'all') {
+        filtered = filtered.filter(p => (p.category || 'Üldine') === activeCategory);
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(p => 
+          p.title.toLowerCase().includes(q) || 
+          p.prompt_text.toLowerCase().includes(q) || 
+          (p.category && p.category.toLowerCase().includes(q))
+        );
       }
 
-      const { data, error } = await query;
-      if (error) {
-        grid.innerHTML = 'Viga laadimisel: ' + error.message;
+      if (filtered.length === 0) {
+        grid.innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1;">Ühtegi viipa ei leitud.</p>';
         return;
       }
 
-      if (!data || data.length === 0) {
-        grid.innerHTML = '<p>Ühtegi viipa pole veel lisatud.</p>';
-        return;
-      }
-
-      grid.innerHTML = data.map(p => `
-        <div class="card" style="margin: 0;">
-          <span class="badge badge-${p.model}">${p.model}</span>
-          <span style="font-size: 12px; color: #64748b; float: right;">${p.category}</span>
-          <h4 style="margin: 4px 0 8px 0;">${p.title}</h4>
-          <div class="prompt-text">${p.prompt_text}</div>
-          ${p.image_url ? `<img src="${p.image_url}" class="prompt-img" alt="Viiba pilt">` : ''}
-          <button style="margin-top: 10px; background: #e2e8f0; color: #334155;" onclick="navigator.clipboard.writeText(\`${p.prompt_text}\`); alert('Kopeeritud lõikelauale!');">Kopeeri viip</button>
+      grid.innerHTML = filtered.map(p => `
+        <div class="prompt-card">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span class="badge badge-${p.model}">${p.model}</span>
+              <span style="font-size: 12px; color: var(--text-muted);">${p.category || 'Üldine'}</span>
+            </div>
+            <h4 style="font-size: 15px; margin-bottom: 8px;">${p.title}</h4>
+            <div class="prompt-text">${p.prompt_text}</div>
+            ${p.image_url ? `<img src="${p.image_url}" class="prompt-img" alt="Viiba pilt">` : ''}
+          </div>
+          <button class="btn-copy" onclick="copyPromptText(this, \`${encodeURIComponent(p.prompt_text)}\`)">Kopeeri viip</button>
         </div>
       `).join('');
     }
 
-    // Laadi viibad lehe esmasel avamisel
-    fetchPrompts();
+    // Filtreerimise sündmused
+    window.filterByModel = function(model, btn) {
+      activeModel = model;
+      document.querySelectorAll('.filter-pills .pill').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      renderPrompts();
+    };
+
+    window.filterByCategory = function(category) {
+      activeCategory = category;
+      renderPrompts();
+    };
+
+    window.handleSearch = function() {
+      searchQuery = document.getElementById('search-input').value.trim();
+      renderPrompts();
+    };
+
+    window.copyPromptText = function(btn, encodedText) {
+      const text = decodeURIComponent(encodedText);
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = '✓ Kopeeritud!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    };
+
+    // Laadi viibad
+    loadPrompts();
   </script>
 </body>
 </html>

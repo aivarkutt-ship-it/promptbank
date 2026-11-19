@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+  <meta charset="UTF-8">
+  <title>PromptBank – AI Viibad ja Käsud</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Supabase JS teek CDN-ist -->
+  <script src="https://onnsyexedghtjakochas.supabase.co"></script>
+  <style>
+    :root { --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; --primary: #3b82f6; --text: #1e293b; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 24px; max-width: 1100px; margin: 0 auto; }
+    h1 { margin-bottom: 24px; display: flex; align-items: center; gap: 8px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+    input, select, textarea, button { width: 100%; padding: 10px; margin-top: 6px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+    button { background: var(--primary); color: white; border: none; font-weight: 600; cursor: pointer; }
+    button:hover { opacity: 0.9; }
+    .filters { display: flex; gap: 10px; margin-bottom: 16px; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; }
+    .badge-claude { background: #fef3c7; color: #b45309; }
+    .badge-gemini { background: #e0e7ff; color: #4338ca; }
+    .badge-notebooklm { background: #dcfce7; color: #15803d; }
+    .prompt-text { background: #f1f5f9; padding: 10px; border-radius: 6px; font-family: monospace; white-space: pre-wrap; font-size: 13px; max-height: 150px; overflow-y: auto; }
+    .prompt-img { max-width: 100%; border-radius: 6px; margin-top: 8px; border: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+  <h1>⚡ PromptBank <span>(Claude • Gemini • NotebookLM)</span></h1>
+
+  <!-- Viiba lisamise vorm -->
+  <div class="card">
+    <h3>➕ Lisa uus viip või käsk</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label>Tehisintellekti mudel:</label>
+        <select id="model">
+          <option value="claude">Claude</option>
+          <option value="gemini">Gemini</option>
+          <option value="notebooklm">NotebookLM</option>
+        </select>
+      </div>
+      <div>
+        <label>Kategooria:</label>
+        <input type="text" id="category" placeholder="nt. Teadustöö, Kood, Sisu..." value="Üldine">
+      </div>
+    </div>
+
+    <label>Pealkiri:</label>
+    <input type="text" id="title" placeholder="Lühike ja tabav pealkiri" required>
+
+    <label>Viiba sisu (Prompt):</label>
+    <textarea id="prompt_text" rows="3" placeholder="Kleebi siia viiba tekst..." required></textarea>
+
+    <label>Pilt (valikuline):</label>
+    <input type="file" id="image_file" accept="image/*">
+
+    <button onclick="savePrompt()">Salvesta PromptBanki</button>
+  </div>
+
+  <!-- Filtreerimine -->
+  <div class="filters">
+    <button style="width: auto; background: #64748b;" onclick="fetchPrompts('all')">Kõik</button>
+    <button style="width: auto; background: #b45309;" onclick="fetchPrompts('claude')">Claude</button>
+    <button style="width: auto; background: #4338ca;" onclick="fetchPrompts('gemini')">Gemini</button>
+    <button style="width: auto; background: #15803d;" onclick="fetchPrompts('notebooklm')">NotebookLM</button>
+  </div>
+
+  <!-- Viipade nimekiri -->
+  <div id="prompts-grid" class="grid">Laen viipasid...</div>
+
+  <script>
+    // 1. SUPABASE ÜHENDUS
+    const SUPABASE_URL = "https://onnsyexedghtjakochas.supabase.co"; // ASENDA OMA PROJEKTI URL-IGA
+    const SUPABASE_ANON_KEY = "sb_publishable_VGBmIpOwhtP5_QBuHw6RgA_fZRDi5Ij";                  // ASENDA OMA ANON VÕTMEGA
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 2. VIIBA SALVESTAMINE
+    async function savePrompt() {
+      const model = document.getElementById('model').value;
+      const category = document.getElementById('category').value;
+      const title = document.getElementById('title').value;
+      const prompt_text = document.getElementById('prompt_text').value;
+      const fileInput = document.getElementById('image_file');
+      let image_url = null;
+
+      if (!title || !prompt_text) {
+        alert("Palun täida vähemalt pealkiri ja viiba tekst!");
+        return;
+      }
+
+      // Pildi üleslaadimine (kui on valitud)
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('prompt-images')
+          .upload(fileName, file);
+
+        if (uploadError) {
+          console.error("Pildi viga:", uploadError);
+        } else {
+          // Hankige pildi avalik link
+          const { data: publicUrlData } = supabase.storage
+            .from('prompt-images')
+            .getPublicUrl(fileName);
+          image_url = publicUrlData.publicUrl;
+        }
+      }
+
+      // Kirje lisamine andmebaasi
+      const { error } = await supabase.from('prompts').insert([{
+        model,
+        category,
+        title,
+        prompt_text,
+        image_url,
+        prompt_type: image_url ? 'image' : 'text'
+      }]);
+
+      if (error) {
+        alert("Viga salvestamisel: " + error.message);
+      } else {
+        // Tühjenda väljad ja värskenda vaadet
+        document.getElementById('title').value = '';
+        document.getElementById('prompt_text').value = '';
+        fileInput.value = '';
+        fetchPrompts();
+      }
+    }
+
+    // 3. VIIPADE PÄRIMINE JA KUVAMINE
+    async function fetchPrompts(filterModel = 'all') {
+      const grid = document.getElementById('prompts-grid');
+      grid.innerHTML = 'Laen andmeid...';
+
+      let query = supabase.from('prompts').select('*').order('created_at', { ascending: false });
+      if (filterModel !== 'all') {
+        query = query.eq('model', filterModel);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        grid.innerHTML = 'Viga laadimisel: ' + error.message;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        grid.innerHTML = '<p>Ühtegi viipa pole veel lisatud.</p>';
+        return;
+      }
+
+      grid.innerHTML = data.map(p => `
+        <div class="card" style="margin: 0;">
+          <span class="badge badge-${p.model}">${p.model}</span>
+          <span style="font-size: 12px; color: #64748b; float: right;">${p.category}</span>
+          <h4 style="margin: 4px 0 8px 0;">${p.title}</h4>
+          <div class="prompt-text">${p.prompt_text}</div>
+          ${p.image_url ? `<img src="${p.image_url}" class="prompt-img" alt="Viiba pilt">` : ''}
+          <button style="margin-top: 10px; background: #e2e8f0; color: #334155;" onclick="navigator.clipboard.writeText(\`${p.prompt_text}\`); alert('Kopeeritud lõikelauale!');">Kopeeri viip</button>
+        </div>
+      `).join('');
+    }
+
+    // Laadi viibad lehe esmasel avamisel
+    fetchPrompts();
+  </script>
+</body>
+</html>
